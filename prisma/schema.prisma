@@ -1,6 +1,10 @@
 // Este é o seu arquivo de configuração do Prisma.
 // Aqui nós dizemos como ele se conecta ao banco e como são as nossas tabelas.
 
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "sqlite"
 }
