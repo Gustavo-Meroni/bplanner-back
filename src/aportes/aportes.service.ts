@@ -1,26 +1,45 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateAporteDto } from './dto/create-aporte.dto';
 import { UpdateAporteDto } from './dto/update-aporte.dto';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AportesService {
-  create(createAporteDto: CreateAporteDto) {
-    return 'This action adds a new aporte';
+  constructor(private prisma: PrismaService) { }
+
+  async create(createAporteDto: CreateAporteDto) {
+    return this.prisma.aporte.create({ data: createAporteDto });
   }
 
-  findAll() {
-    return `This action returns all aportes`;
+  async findAll() {
+    return this.prisma.aporte.findMany();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} aporte`;
+  async findOne(id: string) {
+    const aporte = await this.prisma.aporte.findUnique({
+      where: { id },
+    });
+
+    if (!aporte) {
+      throw new NotFoundException('Aporte não encontrado!');
+    }
+    return aporte;
   }
 
-  update(id: number, updateAporteDto: UpdateAporteDto) {
-    return `This action updates a #${id} aporte`;
+  async update(id: string, updateAporteDto: UpdateAporteDto) {
+    await this.findOne(id); // Valida se existe
+
+    return this.prisma.aporte.update({
+      where: { id },
+      data: updateAporteDto,
+    });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} aporte`;
+  async remove(id: string) {
+    await this.findOne(id); // Valida se existe
+
+    return this.prisma.aporte.delete({
+      where: { id },
+    });
   }
 }
