@@ -102,4 +102,27 @@ export class AuthService {
             },
         };
     }
+
+    async buscarGrupoPorCodigo(codigoConvite: string) {
+        const casal = await this.prisma.casal.findUnique({
+            where: { codigoConvite: codigoConvite.toUpperCase() },
+            select: {
+                id: true,
+                nome: true, // Retorna apenas o nome do grupo e id por segurança
+            },
+        });
+
+        if (!casal) {
+            throw new NotFoundException('Código de convite inválido ou não encontrado.');
+        }
+
+        return casal;
+    }
+
+    async atualizarNomeCasal(casalId: string, novoNome: string) {
+        return this.prisma.casal.update({
+            where: { id: casalId },
+            data: { nome: novoNome },
+        });
+    }
 }
