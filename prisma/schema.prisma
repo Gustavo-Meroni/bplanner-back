@@ -9,12 +9,6 @@ datasource db {
   provider = "postgresql"
 }
 
-// ---------------------------------------------------------
-// TABELAS (MODELOS)
-// ---------------------------------------------------------
-
-// Tabela 1: O Cofre (Aportes)
-// Guarda o dinheiro que está crescendo. Ex: "Saldo Inicial", "Aporte Agosto".
 model Aporte {
   id          String   @id @default(uuid())
   descricao   String
@@ -23,8 +17,6 @@ model Aporte {
   createdAt   DateTime @default(now())
 }
 
-// Tabela 2: O Planejamento (Despesas)
-// Guarda as obrigações a serem pagas mensalmente. Ex: "Airbnb", "Decolar".
 model Despesa {
   id          String   @id @default(uuid())
   descricao   String
@@ -34,4 +26,12 @@ model Despesa {
   vencimento  String?  // <-- Adicionamos esta linha!
   isPaga      Boolean  @default(false)
   createdAt   DateTime @default(now())
+}
+
+model Usuario {
+  id        String   @id @default(uuid())
+  nome      String
+  email     String   @unique
+  senha     String   // Aqui guardaremos a senha criptografada (hash)
+  createdAt DateTime @default(now())
 }
