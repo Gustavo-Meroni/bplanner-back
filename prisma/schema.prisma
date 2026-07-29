@@ -26,11 +26,12 @@ createdAt DateTime @default(now()) // Data em que foi criado
 // Tabela 2: O Planejamento (Despesas)
 // Guarda as obrigações a serem pagas mensalmente. Ex: "Airbnb", "Decolar".
 model Despesa {
-id          String   @id @default(uuid())
-descricao   String
-valor       Float
-mes         String   // Ex: 'Ago/2026' (Usado para o sistema de Tabs)
-isPaga      Boolean  @default(false) // O nosso 'check' começa sempre falso
-responsavel String   // Ex: 'GUSTAVO' ou 'RAFAELA'
-createdAt   DateTime @default(now())
+  id          String   @id @default(uuid())
+  descricao   String
+  valor       Float
+  mes         String
+  responsavel String
+  vencimento  String?  // <-- Adicionamos esta linha!
+  isPaga      Boolean  @default(false)
+  createdAt   DateTime @default(now())
 }
