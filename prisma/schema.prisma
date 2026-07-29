@@ -51,6 +51,7 @@ model Despesa {
   responsavel String   // Nome de quem é responsável pela conta ex: "Gustavo" ou "Par"
   vencimento  String?
   isPaga      Boolean  @default(false)
+  isFixa      Boolean  @default(false)
   createdAt   DateTime @default(now())
 
   casalId     String?

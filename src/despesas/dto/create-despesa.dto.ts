@@ -31,4 +31,9 @@ export class CreateDespesaDto {
     @IsBoolean({ message: 'O campo isPaga deve ser um booleano (true ou false)' })
     @IsOptional()
     isPaga?: boolean;
+
+    @ApiPropertyOptional({ example: true, description: 'Indica se é uma despesa fixa mensal' })
+    @IsBoolean({ message: 'O campo isFixa deve ser um booleano (true ou false)' })
+    @IsOptional()
+    isFixa?: boolean;
 }
