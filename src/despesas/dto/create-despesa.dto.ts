@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNumber, IsOptional, IsNotEmpty } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsNotEmpty, IsBoolean } from 'class-validator';
 
 export class CreateDespesaDto {
     @ApiProperty({ example: 'Passagem Aérea', description: 'Descrição detalhada da despesa' })
@@ -26,4 +26,9 @@ export class CreateDespesaDto {
     @IsString()
     @IsOptional()
     vencimento?: string;
+
+    @ApiPropertyOptional({ example: true, description: 'Status de pagamento da despesa' })
+    @IsBoolean({ message: 'O campo isPaga deve ser um booleano (true ou false)' })
+    @IsOptional()
+    isPaga?: boolean;
 }
