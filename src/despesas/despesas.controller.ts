@@ -2,33 +2,40 @@ import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/commo
 import { DespesasService } from './despesas.service';
 import { CreateDespesaDto } from './dto/create-despesa.dto';
 import { UpdateDespesaDto } from './dto/update-despesa.dto';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 
+@ApiTags('Despesas') // Isso cria uma categoria linda no Swagger!
 @Controller('despesas')
 export class DespesasController {
-  constructor(private readonly despesasService: DespesasService) {}
+  constructor(private readonly despesasService: DespesasService) { }
 
   @Post()
+  @ApiOperation({ summary: 'Criar uma nova despesa' })
   create(@Body() createDespesaDto: CreateDespesaDto) {
     return this.despesasService.create(createDespesaDto);
   }
 
   @Get()
+  @ApiOperation({ summary: 'Listar todas as despesas' })
   findAll() {
     return this.despesasService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.despesasService.findOne(+id);
+  @ApiOperation({ summary: 'Buscar uma despesa específica pelo ID' })
+  findOne(@Param('id') id: string) { // Note que aqui é id: string (sem o +)
+    return this.despesasService.findOne(id);
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Atualizar dados de uma despesa' })
   update(@Param('id') id: string, @Body() updateDespesaDto: UpdateDespesaDto) {
-    return this.despesasService.update(+id, updateDespesaDto);
+    return this.despesasService.update(id, updateDespesaDto);
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Excluir uma despesa' })
   remove(@Param('id') id: string) {
-    return this.despesasService.remove(+id);
+    return this.despesasService.remove(id);
   }
 }

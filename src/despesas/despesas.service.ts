@@ -1,32 +1,48 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateDespesaDto } from './dto/create-despesa.dto';
+import { UpdateDespesaDto } from './dto/update-despesa.dto';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class DespesasService {
-  // Injetamos o PrismaService aqui no construtor
   constructor(private prisma: PrismaService) { }
 
-  // Função para CRIAR uma despesa no banco
   async create(createDespesaDto: CreateDespesaDto) {
-    return this.prisma.despesa.create({
-      data: createDespesaDto,
-    });
+    return this.prisma.despesa.create({ data: createDespesaDto });
   }
 
-  // Função para BUSCAR todas as despesas
   async findAll() {
     return this.prisma.despesa.findMany();
   }
 
-  // Vamos deixar as outras vazias por enquanto, focaremos no Create e Read!
-  findOne(id: number) {
-    return `This action returns a #${id} despesa`;
+  // BUSCAR POR ID
+  async findOne(id: string) {
+    const despesa = await this.prisma.despesa.findUnique({
+      where: { id },
+    });
+
+    if (!despesa) {
+      throw new NotFoundException('Despesa não encontrada!');
+    }
+    return despesa;
   }
-  update(id: number, updateDespesaDto: any) {
-    return `This action updates a #${id} despesa`;
+
+  // ATUALIZAR
+  async update(id: string, updateDespesaDto: UpdateDespesaDto) {
+    await this.findOne(id); // Reutilizamos a função acima para garantir que existe!
+
+    return this.prisma.despesa.update({
+      where: { id },
+      data: updateDespesaDto,
+    });
   }
-  remove(id: number) {
-    return `This action removes a #${id} despesa`;
+
+  // DELETAR
+  async remove(id: string) {
+    await this.findOne(id); // Garante que existe antes de tentar deletar
+
+    return this.prisma.despesa.delete({
+      where: { id },
+    });
   }
 }
