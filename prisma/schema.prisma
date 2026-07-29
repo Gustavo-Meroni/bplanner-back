@@ -1,20 +1,46 @@
 // Este é o seu arquivo de configuração do Prisma.
-// Aqui nós dizemos como ele se conecta ao banco e como são as nossas tabelas.
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
   provider = "postgresql"
 }
 
+model Usuario {
+  id        String   @id @default(uuid())
+  nome      String
+  email     String   @unique
+  senha     String
+  createdAt DateTime @default(now())
+
+  // Relação com o Casal (opcional enquanto não ingressou em um)
+  casalId   String?
+  casal     Casal?   @relation(fields: [casalId], references: [id])
+}
+
+model Casal {
+  id            String    @id @default(uuid())
+  nome          String    // Ex: "Finanças do Casal"
+  codigoConvite String    @unique // Código para o parceiro entrar (Ex: "XY7A92")
+  createdAt     DateTime  @default(now())
+
+  parceiros     Usuario[]
+  despesas      Despesa[]
+  aportes       Aporte[]
+}
+
 model Aporte {
-  id          String   @id @default(uuid())
-  descricao   String
-  valor       Float
-  mes         String
-  createdAt   DateTime @default(now())
+  id        String   @id @default(uuid())
+  descricao String
+  valor     Float
+  mes       String
+  createdAt DateTime @default(now())
+
+  casalId   String?
+  casal     Casal?   @relation(fields: [casalId], references: [id])
 }
 
 model Despesa {
@@ -22,16 +48,11 @@ model Despesa {
   descricao   String
   valor       Float
   mes         String
-  responsavel String
-  vencimento  String?  // <-- Adicionamos esta linha!
+  responsavel String   // Nome de quem é responsável pela conta ex: "Gustavo" ou "Par"
+  vencimento  String?
   isPaga      Boolean  @default(false)
   createdAt   DateTime @default(now())
-}
 
-model Usuario {
-  id        String   @id @default(uuid())
-  nome      String
-  email     String   @unique
-  senha     String   // Aqui guardaremos a senha criptografada (hash)
-  createdAt DateTime @default(now())
+  casalId     String?
+  casal       Casal?   @relation(fields: [casalId], references: [id])
 }

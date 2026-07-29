@@ -7,29 +7,37 @@ import { PrismaService } from '../prisma/prisma.service';
 export class DespesasService {
   constructor(private prisma: PrismaService) { }
 
-  async create(createDespesaDto: CreateDespesaDto) {
-    return this.prisma.despesa.create({ data: createDespesaDto });
+  async create(createDespesaDto: CreateDespesaDto, casalId: string) {
+    return this.prisma.despesa.create({
+      data: {
+        ...createDespesaDto,
+        casalId: casalId, // Amarra a despesa ao casal
+      },
+    });
   }
 
-  async findAll() {
-    return this.prisma.despesa.findMany();
+  async findAll(casalId: string) {
+    return this.prisma.despesa.findMany({
+      where: { casalId: casalId }, // Traz todas as despesas do casal
+    });
   }
 
-  // BUSCAR POR ID
-  async findOne(id: string) {
-    const despesa = await this.prisma.despesa.findUnique({
-      where: { id },
+  async findOne(id: string, casalId: string) {
+    const despesa = await this.prisma.despesa.findFirst({
+      where: {
+        id: id,
+        casalId: casalId, // Garante que a despesa pertence ao casal logado
+      },
     });
 
     if (!despesa) {
-      throw new NotFoundException('Despesa não encontrada!');
+      throw new NotFoundException('Despesa não encontrada ou não pertence ao seu casal!');
     }
     return despesa;
   }
 
-  // ATUALIZAR
-  async update(id: string, updateDespesaDto: UpdateDespesaDto) {
-    await this.findOne(id); // Reutilizamos a função acima para garantir que existe!
+  async update(id: string, updateDespesaDto: UpdateDespesaDto, casalId: string) {
+    await this.findOne(id, casalId);
 
     return this.prisma.despesa.update({
       where: { id },
@@ -37,9 +45,8 @@ export class DespesasService {
     });
   }
 
-  // DELETAR
-  async remove(id: string) {
-    await this.findOne(id); // Garante que existe antes de tentar deletar
+  async remove(id: string, casalId: string) {
+    await this.findOne(id, casalId);
 
     return this.prisma.despesa.delete({
       where: { id },
