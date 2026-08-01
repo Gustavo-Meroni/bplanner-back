@@ -21,13 +21,14 @@ model Usuario {
 
 model Casal {
   id            String    @id @default(uuid())
-  nome          String    // Ex: "Finanças do Casal"
-  codigoConvite String    @unique // Código para o parceiro entrar (Ex: "XY7A92")
+  nome          String    
+  codigoConvite String    @unique 
+  metaViagem    Float     @default(0) // <-- ADICIONADO AQUI
   createdAt     DateTime  @default(now())
 
   parceiros     Usuario[]
   aportes       Aporte[]
-  perfis        Perfil[]  // Relação com Perfis
+  perfis        Perfil[]  
 }
 
 model Aporte {

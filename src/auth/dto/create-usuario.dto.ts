@@ -24,4 +24,9 @@ export class CreateUsuarioDto {
     @IsOptional()
     @IsString()
     codigoConvite?: string;
+
+    @ApiPropertyOptional({ example: 'Casal Silva' })
+    @IsOptional()
+    @IsString()
+    nomeCasal?: string;
 }

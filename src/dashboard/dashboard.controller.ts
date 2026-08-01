@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Query, Req, UseGuards } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -16,5 +16,12 @@ export class DashboardController {
     getResumo(@Req() req: any, @Query('mes') mes?: string) {
         const casalId = req.user?.casalId;
         return this.dashboardService.getResumo(casalId, mes);
+    }
+
+    @Patch('meta')
+    @ApiOperation({ summary: 'Atualizar a meta de viagem do casal' })
+    atualizarMeta(@Body('metaViagem') metaViagem: number, @Req() req: any) {
+        const casalId = req.user.casalId;
+        return this.dashboardService.atualizarMeta(casalId, metaViagem);
     }
 }

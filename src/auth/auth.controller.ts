@@ -11,7 +11,7 @@ import {
 import { AuthService } from './auth.service';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { LoginDto } from './dto/login.dto';
-import { UpdateCasalDto } from './dto/update-casal.dto'; // <-- Import do novo DTO
+import { UpdateCasalDto } from './dto/update-casal.dto';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
@@ -23,7 +23,13 @@ export class AuthController {
     @Post('registrar')
     @ApiOperation({ summary: 'Cadastrar novo usuário (criando ou entrando em um casal)' })
     async registrar(@Body() body: CreateUsuarioDto) {
-        return this.authService.registrar(body.nome, body.email, body.senha, body.codigoConvite);
+        return this.authService.registrar(
+            body.nome,
+            body.email,
+            body.senha,
+            body.codigoConvite,
+            body.nomeCasal
+        );
     }
 
     @Post('login')

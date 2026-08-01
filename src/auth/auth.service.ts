@@ -15,7 +15,8 @@ export class AuthService {
         return Math.random().toString(36).substring(2, 8).toUpperCase();
     }
 
-    async registrar(nome: string, email: string, senhaPlana: string, codigoConvite?: string) {
+    // 💡 ALTERAÇÃO AQUI: Adicionado nomeCasal?: string no final dos parâmetros
+    async registrar(nome: string, email: string, senhaPlana: string, codigoConvite?: string, nomeCasal?: string) {
         const usuarioExiste = await this.prisma.usuario.findUnique({
             where: { email },
         });
@@ -29,7 +30,7 @@ export class AuthService {
 
         let casalId: string;
 
-       if (codigoConvite) {
+        if (codigoConvite) {
             // Se informou o código, busca o casal correspondente
             const casalExistente = await this.prisma.casal.findUnique({
                 where: { codigoConvite: codigoConvite.toUpperCase() },
@@ -42,11 +43,12 @@ export class AuthService {
             // O segundo parceiro está entrando! Os perfis já foram criados pelo primeiro parceiro.
             casalId = casalExistente.id;
         } else {
-            // 💡 A MÁGICA ACONTECE AQUI:
-            // Cria um novo Casal e já gera os 2 Perfis de Planejamento na mesma query!
+            // 💡 ALTERAÇÃO AQUI: Usa o nomeCasal se ele veio do front, ou cai no padrão "Finanças de..."
+            const nomeDoGrupo = nomeCasal && nomeCasal.trim() ? nomeCasal : `Finanças de ${nome}`;
+
             const novoCasal = await this.prisma.casal.create({
                 data: {
-                    nome: `Finanças de ${nome}`,
+                    nome: nomeDoGrupo,
                     codigoConvite: this.gerarCodigoConvite(),
                     perfis: {
                         create: [
@@ -92,7 +94,6 @@ export class AuthService {
             throw new UnauthorizedException('Credenciais inválidas.');
         }
 
-        // O Token JWT agora transporta tanto o ID do usuário quanto o casalId
         const payload = {
             sub: usuario.id,
             email: usuario.email,
@@ -116,7 +117,7 @@ export class AuthService {
             where: { codigoConvite: codigoConvite.toUpperCase() },
             select: {
                 id: true,
-                nome: true, // Retorna apenas o nome do grupo e id por segurança
+                nome: true,
             },
         });
 

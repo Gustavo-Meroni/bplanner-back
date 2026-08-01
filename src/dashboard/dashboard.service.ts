@@ -15,9 +15,14 @@ export class DashboardService {
             queryAportes.mes = mes;
         }
 
-        // 2. Busca os dados
+        // 2. Busca os dados no banco
         const despesas = await this.prisma.despesa.findMany({ where: queryDespesas });
         const aportes = await this.prisma.aporte.findMany({ where: queryAportes });
+
+        // Busca as informações do casal para obter a metaViagem
+        const casal = await this.prisma.casal.findUnique({
+            where: { id: casalId },
+        });
 
         // 3. Faz a matemática
         const totalAportes = aportes.reduce((acc, aporte) => acc + aporte.valor, 0);
@@ -51,10 +56,19 @@ export class DashboardService {
             totalDespesasVariaveis,
             saldo,
             balancoPositivo: saldo >= 0,
+            metaViagem: casal?.metaViagem || 0,
             detalhes: {
                 aportes,
                 despesas
             }
         };
+    }
+
+    // Método para atualizar a meta de viagem do casal
+    async atualizarMeta(casalId: string, novaMeta: number) {
+        return this.prisma.casal.update({
+            where: { id: casalId },
+            data: { metaViagem: novaMeta },
+        });
     }
 }
