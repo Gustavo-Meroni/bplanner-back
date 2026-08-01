@@ -21,23 +21,23 @@ export class DashboardService {
 
         // 3. Faz a matemática
         const totalAportes = aportes.reduce((acc, aporte) => acc + aporte.valor, 0);
-        const totalDespesas = despesas.reduce((acc, despesa) => acc + despesa.valor, 0);
+        const totalDespesas = despesas.reduce((acc, despesa) => acc + despesa.value, 0);
 
         const totalDespesasPagas = despesas
-            .filter(d => d.isPaga)
-            .reduce((acc, d) => acc + d.valor, 0);
+            .filter(d => d.checked)
+            .reduce((acc, d) => acc + d.value, 0);
 
         const totalDespesasPendentes = despesas
-            .filter(d => !d.isPaga)
-            .reduce((acc, d) => acc + d.valor, 0);
+            .filter(d => !d.checked)
+            .reduce((acc, d) => acc + d.value, 0);
 
         const totalDespesasFixas = despesas
             .filter(d => d.isFixa)
-            .reduce((acc, d) => acc + d.valor, 0);
+            .reduce((acc, d) => acc + d.value, 0);
 
         const totalDespesasVariaveis = despesas
             .filter(d => !d.isFixa)
-            .reduce((acc, d) => acc + d.valor, 0);
+            .reduce((acc, d) => acc + d.value, 0);
 
         const saldo = totalAportes - totalDespesas;
 

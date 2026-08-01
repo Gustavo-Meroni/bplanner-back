@@ -1,5 +1,3 @@
-// Este é o seu arquivo de configuração do Prisma.
-
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["driverAdapters"]
@@ -16,7 +14,7 @@ model Usuario {
   senha     String
   createdAt DateTime @default(now())
 
-  // Relação com o Casal (opcional enquanto não ingressou em um)
+  // Relação com o Casal
   casalId   String?
   casal     Casal?   @relation(fields: [casalId], references: [id])
 }
@@ -28,8 +26,8 @@ model Casal {
   createdAt     DateTime  @default(now())
 
   parceiros     Usuario[]
-  despesas      Despesa[]
   aportes       Aporte[]
+  perfis        Perfil[]  // Relação com Perfis
 }
 
 model Aporte {
@@ -43,17 +41,38 @@ model Aporte {
   casal     Casal?   @relation(fields: [casalId], references: [id])
 }
 
+model Perfil {
+  id        String      @id @default(uuid())
+  name      String      // Ex: "Planejamento Gustavo"
+  limit     Float       @default(0) // Limite de gastos
+  
+  casalId   String
+  casal     Casal       @relation(fields: [casalId], references: [id])
+  
+  categories Categoria[]
+}
+
+model Categoria {
+  id        String    @id @default(uuid())
+  name      String    // Ex: "Moradia", "Lazer"
+  
+  perfilId  String
+  perfil    Perfil    @relation(fields: [perfilId], references: [id], onDelete: Cascade)
+  
+  items     Despesa[]
+}
+
 model Despesa {
   id          String   @id @default(uuid())
-  descricao   String
-  valor       Float
+  name        String   
+  value       Float    
   mes         String
-  responsavel String   // Nome de quem é responsável pela conta ex: "Gustavo" ou "Par"
-  vencimento  String?
-  isPaga      Boolean  @default(false)
+  checked     Boolean  @default(false) 
   isFixa      Boolean  @default(false)
   createdAt   DateTime @default(now())
 
+  categoryId  String
+  category    Categoria @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
   casalId     String?
-  casal       Casal?   @relation(fields: [casalId], references: [id])
 }

@@ -29,7 +29,7 @@ export class AuthService {
 
         let casalId: string;
 
-        if (codigoConvite) {
+       if (codigoConvite) {
             // Se informou o código, busca o casal correspondente
             const casalExistente = await this.prisma.casal.findUnique({
                 where: { codigoConvite: codigoConvite.toUpperCase() },
@@ -39,13 +39,21 @@ export class AuthService {
                 throw new NotFoundException('Código de convite inválido ou casal não encontrado.');
             }
 
+            // O segundo parceiro está entrando! Os perfis já foram criados pelo primeiro parceiro.
             casalId = casalExistente.id;
         } else {
-            // Se não informou código, cria um novo Casal para o usuário
+            // 💡 A MÁGICA ACONTECE AQUI:
+            // Cria um novo Casal e já gera os 2 Perfis de Planejamento na mesma query!
             const novoCasal = await this.prisma.casal.create({
                 data: {
                     nome: `Finanças de ${nome}`,
                     codigoConvite: this.gerarCodigoConvite(),
+                    perfis: {
+                        create: [
+                            { name: `Planejamento ${nome}`, limit: 0 },
+                            { name: 'Planejamento Parceiro(a)', limit: 0 }
+                        ]
+                    }
                 },
             });
             casalId = novoCasal.id;
