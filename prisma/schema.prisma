@@ -1,36 +1,79 @@
-// Este é o seu arquivo de configuração do Prisma.
-// Aqui nós dizemos como ele se conecta ao banco e como são as nossas tabelas.
-
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
-// ---------------------------------------------------------
-// TABELAS (MODELOS)
-// ---------------------------------------------------------
+model Usuario {
+  id        String   @id @default(uuid())
+  nome      String
+  email     String   @unique
+  senha     String
+  createdAt DateTime @default(now())
 
-// Tabela 1: O Cofre (Aportes)
-// Guarda o dinheiro que está crescendo. Ex: "Saldo Inicial", "Aporte Agosto".
+  // Relação com o Casal
+  casalId   String?
+  casal     Casal?   @relation(fields: [casalId], references: [id])
+}
+
+model Casal {
+  id            String    @id @default(uuid())
+  nome          String    
+  codigoConvite String    @unique 
+  metaViagem    Float     @default(0) // <-- ADICIONADO AQUI
+  createdAt     DateTime  @default(now())
+
+  parceiros     Usuario[]
+  aportes       Aporte[]
+  perfis        Perfil[]  
+}
+
 model Aporte {
-id        String   @id @default(uuid()) // Gera um ID único estilo 'abc-123'
-descricao String
-valor     Float    // Ex: 900.50
-categoria String   @default("ESSENCIAL") // "ESSENCIAL" (Meta) ou "LAZER"
-createdAt DateTime @default(now()) // Data em que foi criado
+  id        String   @id @default(uuid())
+  descricao String
+  valor     Float
+  mes       String
+  createdAt DateTime @default(now())
+
+  casalId   String?
+  casal     Casal?   @relation(fields: [casalId], references: [id])
 }
 
-// Tabela 2: O Planejamento (Despesas)
-// Guarda as obrigações a serem pagas mensalmente. Ex: "Airbnb", "Decolar".
+model Perfil {
+  id        String      @id @default(uuid())
+  name      String      // Ex: "Planejamento Gustavo"
+  limit     Float       @default(0) // Limite de gastos
+  
+  casalId   String
+  casal     Casal       @relation(fields: [casalId], references: [id])
+  
+  categories Categoria[]
+}
+
+model Categoria {
+  id        String    @id @default(uuid())
+  name      String    // Ex: "Moradia", "Lazer"
+  
+  perfilId  String
+  perfil    Perfil    @relation(fields: [perfilId], references: [id], onDelete: Cascade)
+  
+  items     Despesa[]
+}
+
 model Despesa {
-id          String   @id @default(uuid())
-descricao   String
-valor       Float
-mes         String   // Ex: 'Ago/2026' (Usado para o sistema de Tabs)
-isPaga      Boolean  @default(false) // O nosso 'check' começa sempre falso
-responsavel String   // Ex: 'GUSTAVO' ou 'RAFAELA'
-createdAt   DateTime @default(now())
+  id          String   @id @default(uuid())
+  name        String   
+  value       Float    
+  mes         String
+  checked     Boolean  @default(false) 
+  isFixa      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  categoryId  String
+  category    Categoria @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  casalId     String?
 }

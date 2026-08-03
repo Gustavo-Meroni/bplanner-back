@@ -1,22 +1,28 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-import { PrismaLibSql } from '@prisma/adapter-libsql';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit {
-  constructor() {
-    // Agora passamos apenas a "Config" diretamente para o adaptador!
-    // Ele mesmo vai se encarregar de gerenciar o @libsql/client
-    const adapter = new PrismaLibSql({
-      url: 'file:./prisma/dev.db',
+  constructor(private configService: ConfigService) {
+    const databaseUrl = configService.get<string>('DATABASE_URL');
+
+    const pool = new Pool({
+      connectionString: databaseUrl,
+      // O SSL fica aqui, o que evita o erro de TIMEOUT e conecta com sucesso!
+      ssl: {
+        rejectUnauthorized: false,
+      },
     });
 
-    // Ligamos o motor do Prisma
+    const adapter = new PrismaPg(pool);
     super({ adapter });
   }
 
   async onModuleInit() {
     await this.$connect();
-    console.log('📦 Banco de dados conectado com sucesso!');
+    console.log('📦 Conectado ao PostgreSQL no Supabase com sucesso!');
   }
 }
