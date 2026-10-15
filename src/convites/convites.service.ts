@@ -31,19 +31,29 @@ export class ConvitesService {
   /** Prévia pública do convite: o que a pessoa vê antes de entrar */
   async previa(codigo: string) {
     const convite = await this.buscarValido(codigo);
-    const viagem = await this.prisma.viagem.findUniqueOrThrow({
-      where: { id: convite.viagemId },
-      include: {
-        participantes: { include: { usuario: { select: { nome: true } } }, orderBy: { entrouEm: 'asc' } },
-      },
-    });
+    const [viagem, criadoPor] = await Promise.all([
+      this.prisma.viagem.findUniqueOrThrow({
+        where: { id: convite.viagemId },
+        include: {
+          participantes: { include: { usuario: { select: { nome: true } } }, orderBy: { entrouEm: 'asc' } },
+        },
+      }),
+      convite.criadoPorId
+        ? this.prisma.usuario.findUnique({ where: { id: convite.criadoPorId }, select: { nome: true } })
+        : null,
+    ]);
+    const dono = viagem.participantes.find((p) => p.papel === 'DONO');
     return {
       codigo: convite.codigo,
+      convidadoPor: criadoPor?.nome ?? dono?.usuario.nome ?? null,
       viagem: {
         nome: viagem.nome,
         destinoNome: viagem.destinoNome,
         destinoPais: viagem.destinoPais,
+        destinoLat: viagem.destinoLat,
+        destinoLng: viagem.destinoLng,
         dataIda: viagem.dataIda?.toISOString().slice(0, 10) ?? null,
+        dataVolta: viagem.dataVolta?.toISOString().slice(0, 10) ?? null,
       },
       participantes: viagem.participantes.map((p) => p.usuario.nome),
     };
