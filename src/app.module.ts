@@ -1,23 +1,25 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
-import { DespesasModule } from './despesas/despesas.module';
-import { AportesModule } from './aportes/aportes.module';
-import { DashboardModule } from './dashboard/dashboard.module';
-import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
+import { ViagensModule } from './viagens/viagens.module';
+import { ConvitesModule } from './convites/convites.module';
+import { AportesModule } from './aportes/aportes.module';
+import { CustosModule } from './custos/custos.module';
+import { DestinosModule } from './destinos/destinos.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true, // Torna o .env acessível em toda a aplicação
-    }),
+    ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
-    DespesasModule,
-    AportesModule,
-    DashboardModule,
     AuthModule,
+    ViagensModule,
+    ConvitesModule,
+    AportesModule,
+    CustosModule,
+    DestinosModule,
   ],
   controllers: [AppController],
   providers: [AppService],

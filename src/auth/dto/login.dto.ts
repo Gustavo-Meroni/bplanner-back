@@ -1,9 +1,11 @@
+import { NormalizarEmail } from '../../common/normalizar';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
 
 export class LoginDto {
     @ApiProperty({ example: 'gustavo@email.com', description: 'Email do usuário' })
-    @IsEmail({}, { message: 'Informe um email válido' })
+    @NormalizarEmail()
+  @IsEmail({}, { message: 'Informe um email válido' })
     @IsNotEmpty()
     email: string;
 

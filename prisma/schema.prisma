@@ -1,11 +1,18 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Convenções
+//  - Dinheiro sempre em centavos (Int): evita erros de arredondamento do Float
+//  - Datas de calendário (vencimento, ida, volta, aporte) usam @db.Date
+//  - Tudo que é da viagem pendura em viagemId; o acesso é checado pela
+//    participação do usuário na viagem (ver ViagemGuard)
+// ─────────────────────────────────────────────────────────────────────────────
 
 model Usuario {
   id        String   @id @default(uuid())
@@ -14,66 +21,146 @@ model Usuario {
   senha     String
   createdAt DateTime @default(now())
 
-  // Relação com o Casal
-  casalId   String?
-  casal     Casal?   @relation(fields: [casalId], references: [id])
+  participacoes   Participante[]
+  convitesCriados Convite[]
 }
 
-model Casal {
-  id            String    @id @default(uuid())
-  nome          String    
-  codigoConvite String    @unique 
-  metaViagem    Float     @default(0) // <-- ADICIONADO AQUI
-  createdAt     DateTime  @default(now())
+/// Uma viagem planejada por 1 ou mais pessoas
+model Viagem {
+  id   String @id @default(uuid())
+  nome String
 
-  parceiros     Usuario[]
-  aportes       Aporte[]
-  perfis        Perfil[]  
-}
+  // Destino (preenchido no onboarding; nulo = viagem ainda não configurada)
+  destinoNome       String?
+  destinoRegiao     String?
+  destinoPais       String?
+  destinoCodigoPais String?
+  destinoLat        Float?
+  destinoLng        Float?
 
-model Aporte {
-  id        String   @id @default(uuid())
-  descricao String
-  valor     Float
-  mes       String
+  // Origem (opcional, usada para desenhar a rota)
+  origemNome String?
+  origemLat  Float?
+  origemLng  Float?
+
+  dataIda   DateTime? @db.Date
+  dataVolta DateTime? @db.Date
+
+  metaCentavos Int   @default(0)
+  /// Detalhamento da estimativa feita no onboarding (passagem, hospedagem, diária...)
+  estimativa   Json?
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  casalId   String?
-  casal     Casal?   @relation(fields: [casalId], references: [id])
+  participantes Participante[]
+  convites      Convite[]
+  aportes       Aporte[]
+  custos        Custo[]
 }
 
-model Perfil {
-  id        String      @id @default(uuid())
-  name      String      // Ex: "Planejamento Gustavo"
-  limit     Float       @default(0) // Limite de gastos
-  
-  casalId   String
-  casal     Casal       @relation(fields: [casalId], references: [id])
-  
-  categories Categoria[]
+enum PapelParticipante {
+  DONO
+  MEMBRO
 }
 
-model Categoria {
+/// Liga um usuário a uma viagem (N:N)
+model Participante {
+  id       String            @id @default(uuid())
+  papel    PapelParticipante @default(MEMBRO)
+  entrouEm DateTime          @default(now())
+
+  usuarioId String
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  viagemId  String
+  viagem    Viagem  @relation(fields: [viagemId], references: [id], onDelete: Cascade)
+
+  aportes         Aporte[]
+  custosAssumidos Custo[]
+
+  @@unique([usuarioId, viagemId])
+  @@index([viagemId])
+}
+
+/// Link de convite reutilizável: /convite/{codigo}
+model Convite {
   id        String    @id @default(uuid())
-  name      String    // Ex: "Moradia", "Lazer"
-  
-  perfilId  String
-  perfil    Perfil    @relation(fields: [perfilId], references: [id], onDelete: Cascade)
-  
-  items     Despesa[]
+  codigo    String    @unique
+  expiraEm  DateTime?
+  createdAt DateTime  @default(now())
+
+  viagemId    String
+  viagem      Viagem   @relation(fields: [viagemId], references: [id], onDelete: Cascade)
+  criadoPorId String?
+  criadoPor   Usuario? @relation(fields: [criadoPorId], references: [id], onDelete: SetNull)
+
+  @@index([viagemId])
 }
 
-model Despesa {
-  id          String   @id @default(uuid())
-  name        String   
-  value       Float    
-  mes         String
-  checked     Boolean  @default(false) 
-  isFixa      Boolean  @default(false)
-  createdAt   DateTime @default(now())
+/// Dinheiro guardado para a viagem
+model Aporte {
+  id            String   @id @default(uuid())
+  descricao     String
+  valorCentavos Int
+  data          DateTime @db.Date
+  createdAt     DateTime @default(now())
 
-  categoryId  String
-  category    Categoria @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  viagemId       String
+  viagem         Viagem        @relation(fields: [viagemId], references: [id], onDelete: Cascade)
+  /// Quem guardou (opcional)
+  participanteId String?
+  participante   Participante? @relation(fields: [participanteId], references: [id], onDelete: SetNull)
 
-  casalId     String?
+  @@index([viagemId, data])
+}
+
+enum CategoriaCusto {
+  TRANSPORTE
+  HOSPEDAGEM
+  ALIMENTACAO
+  PASSEIOS
+  COMPRAS
+  SEGURO
+  DOCUMENTOS
+  OUTROS
+}
+
+/// Um gasto da viagem (passagem, hotel, passeio...). Sempre tem 1+ parcelas.
+model Custo {
+  id                 String         @id @default(uuid())
+  nome               String
+  categoria          CategoriaCusto @default(OUTROS)
+  /// Soma das parcelas (mantida pelo serviço)
+  valorTotalCentavos Int
+  observacao         String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  viagemId      String
+  viagem        Viagem        @relation(fields: [viagemId], references: [id], onDelete: Cascade)
+  /// Quem é responsável por pagar (opcional)
+  responsavelId String?
+  responsavel   Participante? @relation(fields: [responsavelId], references: [id], onDelete: SetNull)
+
+  parcelas Parcela[]
+
+  @@index([viagemId])
+}
+
+/// Parcela de um custo. À vista = 1 parcela.
+model Parcela {
+  id            String    @id @default(uuid())
+  numero        Int
+  valorCentavos Int
+  vencimento    DateTime  @db.Date
+  /// Data em que foi paga; nulo = pendente
+  pagaEm        DateTime? @db.Date
+  /// Paga com o dinheiro do cofre (aportes)? Evita contar o mesmo dinheiro duas vezes
+  pagaComCofre  Boolean   @default(false)
+
+  custoId String
+  custo   Custo  @relation(fields: [custoId], references: [id], onDelete: Cascade)
+
+  @@unique([custoId, numero])
+  @@index([vencimento])
 }

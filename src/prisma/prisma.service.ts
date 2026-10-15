@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
@@ -6,23 +6,19 @@ import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit {
-  constructor(private configService: ConfigService) {
-    const databaseUrl = configService.get<string>('DATABASE_URL');
+  private readonly logger = new Logger(PrismaService.name);
 
+  constructor(configService: ConfigService) {
     const pool = new Pool({
-      connectionString: databaseUrl,
-      // O SSL fica aqui, o que evita o erro de TIMEOUT e conecta com sucesso!
-      ssl: {
-        rejectUnauthorized: false,
-      },
+      connectionString: configService.get<string>('DATABASE_URL'),
+      // Supabase exige SSL. Para um Postgres local sem SSL, use DATABASE_SSL=false no .env
+      ssl: configService.get<string>('DATABASE_SSL') === 'false' ? undefined : { rejectUnauthorized: false },
     });
-
-    const adapter = new PrismaPg(pool);
-    super({ adapter });
+    super({ adapter: new PrismaPg(pool) });
   }
 
   async onModuleInit() {
     await this.$connect();
-    console.log('📦 Conectado ao PostgreSQL no Supabase com sucesso!');
+    this.logger.log('Conectado ao PostgreSQL');
   }
 }

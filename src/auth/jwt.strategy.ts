@@ -1,23 +1,20 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable } from '@nestjs/common';
+import { UsuarioAutenticado } from '../common/usuario-atual.decorator';
+import { JWT_SECRET } from './auth.constants';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-    constructor() {
-        super({
-            jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-            ignoreExpiration: false,
-            secretOrKey: process.env.JWT_SECRET || 'bplanner-chave-secreta-em-desenvolvimento',
-        });
-    }
+  constructor() {
+    super({
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ignoreExpiration: false,
+      secretOrKey: JWT_SECRET,
+    });
+  }
 
-    async validate(payload: any) {
-        return {
-            id: payload.sub,
-            email: payload.email,
-            nome: payload.nome,
-            casalId: payload.casalId, // <-- Agora o casalId está acessível no req.user
-        };
-    }
+  validate(payload: { sub: string; email: string; nome: string }): UsuarioAutenticado {
+    return { id: payload.sub, email: payload.email, nome: payload.nome };
+  }
 }

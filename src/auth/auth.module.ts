@@ -3,19 +3,18 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { PrismaModule } from '../prisma/prisma.module';
-import { JwtStrategy } from './jwt.strategy'; // <-- Importe aqui
+import { JwtStrategy } from './jwt.strategy';
+import { JWT_EXPIRES_IN, JWT_SECRET } from './auth.constants';
 
 @Module({
   imports: [
-    PrismaModule,
     PassportModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'bplanner-chave-secreta-em-desenvolvimento',
-      signOptions: { expiresIn: '1d' },
+      secret: JWT_SECRET,
+      signOptions: { expiresIn: JWT_EXPIRES_IN },
     }),
   ],
-  providers: [AuthService, JwtStrategy], // <-- Coloque o JwtStrategy aqui
+  providers: [AuthService, JwtStrategy],
   controllers: [AuthController],
 })
-export class AuthModule { }
+export class AuthModule {}

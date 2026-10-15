@@ -1,49 +1,42 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Participante } from '@prisma/client';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ParticipanteAtual, ViagemGuard } from '../viagens/viagem.guard';
 import { AportesService } from './aportes.service';
-import { CreateAporteDto } from './dto/create-aporte.dto';
-import { UpdateAporteDto } from './dto/update-aporte.dto';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard'; // Import relativo padronizado
+import { CreateAporteDto, UpdateAporteDto } from './dto/aporte.dto';
 
 @ApiTags('Aportes')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
-@Controller('aportes')
+@UseGuards(JwtAuthGuard, ViagemGuard)
+@Controller('viagens/:viagemId/aportes')
 export class AportesController {
-  constructor(private readonly aportesService: AportesService) { }
-
-  @Post()
-  @ApiOperation({ summary: 'Criar um novo aporte (receita) para o casal' })
-  create(@Body() createAporteDto: CreateAporteDto, @Req() req: any) {
-    const casalId = req.user.casalId;
-    return this.aportesService.create(createAporteDto, casalId);
-  }
+  constructor(private readonly aportes: AportesService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Listar todos os aportes compartilhados do casal' })
-  findAll(@Req() req: any) {
-    const casalId = req.user.casalId;
-    return this.aportesService.findAll(casalId);
+  @ApiOperation({ summary: 'Aportes da viagem (mais recentes primeiro)' })
+  listar(@Param('viagemId') viagemId: string) {
+    return this.aportes.listar(viagemId);
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Buscar um aporte específico pelo ID' })
-  findOne(@Param('id') id: string, @Req() req: any) {
-    const casalId = req.user.casalId;
-    return this.aportesService.findOne(id, casalId);
+  @Post()
+  @ApiOperation({ summary: 'Registrar dinheiro guardado' })
+  criar(
+    @Param('viagemId') viagemId: string,
+    @Body() dto: CreateAporteDto,
+    @ParticipanteAtual() participante: Participante,
+  ) {
+    return this.aportes.criar(viagemId, dto, participante);
   }
 
-  @Patch(':id')
-  @ApiOperation({ summary: 'Atualizar dados de um aporte do casal' })
-  update(@Param('id') id: string, @Body() updateAporteDto: UpdateAporteDto, @Req() req: any) {
-    const casalId = req.user.casalId;
-    return this.aportesService.update(id, updateAporteDto, casalId);
+  @Patch(':aporteId')
+  atualizar(@Param('viagemId') viagemId: string, @Param('aporteId') aporteId: string, @Body() dto: UpdateAporteDto) {
+    return this.aportes.atualizar(viagemId, aporteId, dto);
   }
 
-  @Delete(':id')
-  @ApiOperation({ summary: 'Excluir um aporte do casal' })
-  remove(@Param('id') id: string, @Req() req: any) {
-    const casalId = req.user.casalId;
-    return this.aportesService.remove(id, casalId);
+  @Delete(':aporteId')
+  @HttpCode(204)
+  excluir(@Param('viagemId') viagemId: string, @Param('aporteId') aporteId: string) {
+    return this.aportes.excluir(viagemId, aporteId);
   }
 }
