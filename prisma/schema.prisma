@@ -30,18 +30,11 @@ model Viagem {
   id   String @id @default(uuid())
   nome String
 
-  // Destino (preenchido no onboarding; nulo = viagem ainda não configurada)
-  destinoNome       String?
-  destinoRegiao     String?
-  destinoPais       String?
-  destinoCodigoPais String?
-  destinoLat        Float?
-  destinoLng        Float?
-
-  // Origem (opcional, usada para desenhar a rota)
-  origemNome String?
-  origemLat  Float?
-  origemLng  Float?
+  // Origem (opcional, usada para desenhar a rota e o código no cartão de embarque)
+  origemNome      String?
+  origemLat       Float?
+  origemLng       Float?
+  origemAeroporto String?
 
   dataIda   DateTime? @db.Date
   dataVolta DateTime? @db.Date
@@ -53,10 +46,34 @@ model Viagem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// Destinos em ordem (1 ou mais). Sem paradas = viagem ainda não configurada
+  paradas       Parada[]
   participantes Participante[]
   convites      Convite[]
   aportes       Aporte[]
   custos        Custo[]
+}
+
+/// Uma cidade do roteiro. A viagem pode ter várias (ex.: Buenos Aires → Mendoza)
+model Parada {
+  id         String    @id @default(uuid())
+  ordem      Int
+  nome       String
+  regiao     String?
+  pais       String?
+  codigoPais String?
+  lat        Float
+  lng        Float
+  /// Código IATA do aeroporto mais próximo (ex.: EZE)
+  aeroporto  String?
+  /// Datas por parada (para uma versão futura do roteiro)
+  chegada    DateTime? @db.Date
+  saida      DateTime? @db.Date
+
+  viagemId String
+  viagem   Viagem @relation(fields: [viagemId], references: [id], onDelete: Cascade)
+
+  @@unique([viagemId, ordem])
 }
 
 enum PapelParticipante {

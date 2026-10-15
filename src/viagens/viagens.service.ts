@@ -1,8 +1,8 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Participante, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateViagemDto, UpdateViagemDto } from './dto/viagem.dto';
-import { resumirViagem } from './viagens.mapper';
+import { CreateViagemDto, ParadaDto, UpdateViagemDto } from './dto/viagem.dto';
+import { COM_PARADAS, resumirViagem } from './viagens.mapper';
 import { exigirDono } from './viagem.guard';
 import { chaveDoMes, diasEntre, hoje, mesesAte, paraData, paraIso } from '../common/datas';
 
@@ -13,7 +13,7 @@ export class ViagensService {
   async listar(usuarioId: string) {
     const participacoes = await this.prisma.participante.findMany({
       where: { usuarioId },
-      include: { viagem: true },
+      include: { viagem: { include: COM_PARADAS } },
       orderBy: { entrouEm: 'asc' },
     });
     return participacoes.map((p) => ({ ...resumirViagem(p.viagem), papel: p.papel }));
@@ -26,9 +26,11 @@ export class ViagensService {
     const viagem = await this.prisma.viagem.create({
       data: {
         ...this.paraDados(dto),
-        nome: dto.nome?.trim() || dto.destino.nome,
+        nome: dto.nome?.trim() || nomePadrao(dto.paradas),
+        paradas: { create: this.paraParadas(dto.paradas) },
         participantes: { create: { usuarioId, papel: 'DONO' } },
       },
+      include: COM_PARADAS,
     });
     return { ...resumirViagem(viagem), papel: 'DONO' as const };
   }
@@ -37,6 +39,7 @@ export class ViagensService {
     const viagem = await this.prisma.viagem.findUniqueOrThrow({
       where: { id: viagemId },
       include: {
+        ...COM_PARADAS,
         participantes: {
           include: { usuario: { select: { id: true, nome: true, email: true } } },
           orderBy: { entrouEm: 'asc' },
@@ -64,9 +67,18 @@ export class ViagensService {
     const volta = dto.dataVolta ?? (atual.dataVolta ? paraIso(atual.dataVolta) : undefined);
     if (ida && volta) this.validarDatas(ida, volta);
 
-    const viagem = await this.prisma.viagem.update({
-      where: { id: viagemId },
-      data: { ...this.paraDados(dto), ...(dto.nome !== undefined && { nome: dto.nome.trim() }) },
+    const viagem = await this.prisma.$transaction(async (tx) => {
+      if (dto.paradas) {
+        // O roteiro é substituído inteiro (ordem nova, cidades novas)
+        await tx.parada.deleteMany({ where: { viagemId } });
+        await tx.parada.createMany({ data: this.paraParadas(dto.paradas).map((p) => ({ ...p, viagemId })) });
+      }
+      const nome = dto.nome?.trim() || (dto.paradas && !atual.nome.trim() ? nomePadrao(dto.paradas) : undefined);
+      return tx.viagem.update({
+        where: { id: viagemId },
+        data: { ...this.paraDados(dto), ...(nome && { nome }) },
+        include: COM_PARADAS,
+      });
     });
     return resumirViagem(viagem);
   }
@@ -110,7 +122,7 @@ export class ViagensService {
    */
   async resumo(viagemId: string) {
     const [viagem, aportes, parcelas] = await Promise.all([
-      this.prisma.viagem.findUniqueOrThrow({ where: { id: viagemId } }),
+      this.prisma.viagem.findUniqueOrThrow({ where: { id: viagemId }, include: COM_PARADAS }),
       this.prisma.aporte.findMany({ where: { viagemId }, orderBy: { data: 'asc' } }),
       this.prisma.parcela.findMany({
         where: { custo: { viagemId } },
@@ -177,20 +189,28 @@ export class ViagensService {
     }
   }
 
+  private paraParadas(paradas: ParadaDto[]) {
+    return paradas.map((p, i) => ({
+      ordem: i + 1,
+      nome: p.nome.trim(),
+      regiao: p.regiao ?? null,
+      pais: p.pais ?? null,
+      codigoPais: p.codigoPais?.toUpperCase() ?? null,
+      lat: p.lat,
+      lng: p.lng,
+      aeroporto: p.aeroporto?.toUpperCase() ?? null,
+    }));
+  }
+
   private paraDados(dto: UpdateViagemDto): Prisma.ViagemUpdateInput & Prisma.ViagemCreateInput {
     const dados: Record<string, unknown> = {};
-    if (dto.destino) {
-      Object.assign(dados, {
-        destinoNome: dto.destino.nome,
-        destinoRegiao: dto.destino.regiao ?? null,
-        destinoPais: dto.destino.pais ?? null,
-        destinoCodigoPais: dto.destino.codigoPais?.toUpperCase() ?? null,
-        destinoLat: dto.destino.lat,
-        destinoLng: dto.destino.lng,
-      });
-    }
     if (dto.origem) {
-      Object.assign(dados, { origemNome: dto.origem.nome, origemLat: dto.origem.lat, origemLng: dto.origem.lng });
+      Object.assign(dados, {
+        origemNome: dto.origem.nome,
+        origemLat: dto.origem.lat,
+        origemLng: dto.origem.lng,
+        origemAeroporto: dto.origem.aeroporto?.toUpperCase() ?? null,
+      });
     }
     if (dto.dataIda) dados.dataIda = paraData(dto.dataIda);
     if (dto.dataVolta) dados.dataVolta = paraData(dto.dataVolta);
@@ -198,6 +218,11 @@ export class ViagensService {
     if (dto.estimativa !== undefined) dados.estimativa = dto.estimativa as Prisma.InputJsonValue;
     return dados as Prisma.ViagemUpdateInput & Prisma.ViagemCreateInput;
   }
+}
+
+function nomePadrao(paradas: ParadaDto[]) {
+  const nomes = paradas.map((p) => p.nome);
+  return nomes.length <= 2 ? nomes.join(' e ') : `${nomes[0]} e mais ${nomes.length - 1} cidades`;
 }
 
 function soma(valores: number[]) {

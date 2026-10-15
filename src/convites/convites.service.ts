@@ -35,6 +35,7 @@ export class ConvitesService {
       this.prisma.viagem.findUniqueOrThrow({
         where: { id: convite.viagemId },
         include: {
+          paradas: { orderBy: { ordem: 'asc' } },
           participantes: { include: { usuario: { select: { nome: true } } }, orderBy: { entrouEm: 'asc' } },
         },
       }),
@@ -48,10 +49,7 @@ export class ConvitesService {
       convidadoPor: criadoPor?.nome ?? dono?.usuario.nome ?? null,
       viagem: {
         nome: viagem.nome,
-        destinoNome: viagem.destinoNome,
-        destinoPais: viagem.destinoPais,
-        destinoLat: viagem.destinoLat,
-        destinoLng: viagem.destinoLng,
+        paradas: viagem.paradas.map((p) => ({ nome: p.nome, pais: p.pais, codigoPais: p.codigoPais, lat: p.lat, lng: p.lng })),
         dataIda: viagem.dataIda?.toISOString().slice(0, 10) ?? null,
         dataVolta: viagem.dataVolta?.toISOString().slice(0, 10) ?? null,
       },

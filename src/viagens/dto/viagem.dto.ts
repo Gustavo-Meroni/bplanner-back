@@ -1,6 +1,8 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
   IsDateString,
   IsDefined,
   IsInt,
@@ -32,7 +34,15 @@ export class LocalDto {
   lng: number;
 }
 
-export class DestinoDto extends LocalDto {
+export class OrigemDto extends LocalDto {
+  @ApiPropertyOptional({ example: 'GRU', description: 'Código IATA do aeroporto' })
+  @IsOptional()
+  @IsString()
+  @Length(3, 3)
+  aeroporto?: string;
+}
+
+export class ParadaDto extends OrigemDto {
   @ApiPropertyOptional({ example: 'Ciudad Autónoma de Buenos Aires' })
   @IsOptional()
   @IsString()
@@ -59,17 +69,19 @@ export class CreateViagemDto {
   @MaxLength(80)
   nome?: string;
 
-  @ApiProperty({ type: DestinoDto })
+  @ApiProperty({ type: [ParadaDto], description: 'Destinos em ordem (1 a 8)' })
   @IsDefined({ message: 'Escolha o destino da viagem' })
-  @ValidateNested()
-  @Type(() => DestinoDto)
-  destino: DestinoDto;
+  @ValidateNested({ each: true })
+  @Type(() => ParadaDto)
+  @ArrayMinSize(1, { message: 'Escolha pelo menos um destino' })
+  @ArrayMaxSize(8, { message: 'No máximo 8 cidades por viagem' })
+  paradas: ParadaDto[];
 
-  @ApiPropertyOptional({ type: LocalDto })
+  @ApiPropertyOptional({ type: OrigemDto })
   @IsOptional()
   @ValidateNested()
-  @Type(() => LocalDto)
-  origem?: LocalDto;
+  @Type(() => OrigemDto)
+  origem?: OrigemDto;
 
   @ApiProperty({ example: '2026-12-27' })
   @IsDateString({}, { message: 'Informe a data de ida (AAAA-MM-DD)' })

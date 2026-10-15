@@ -4,7 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { Usuario } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
-import { resumirViagem } from '../viagens/viagens.mapper';
+import { COM_PARADAS, resumirViagem } from '../viagens/viagens.mapper';
 
 @Injectable()
 export class AuthService {
@@ -46,7 +46,7 @@ export class AuthService {
       where: { id: usuarioId },
       include: {
         participacoes: {
-          include: { viagem: true },
+          include: { viagem: { include: COM_PARADAS } },
           orderBy: { entrouEm: 'asc' },
         },
       },
