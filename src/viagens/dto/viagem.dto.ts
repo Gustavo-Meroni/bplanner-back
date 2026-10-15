@@ -1,9 +1,13 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+import { CategoriaCusto } from '@prisma/client';
 import {
   ArrayMaxSize,
   ArrayMinSize,
   IsDateString,
+  IsEnum,
+  ValidateIf,
+  Max,
   IsDefined,
   IsInt,
   IsLatitude,
@@ -62,6 +66,69 @@ export class ParadaDto extends OrigemDto {
   codigoPais?: string;
 }
 
+/** Como o valor do item se multiplica para virar o total */
+export enum BaseDoCusto {
+  FIXO = 'FIXO',
+  POR_PESSOA = 'POR_PESSOA',
+  POR_NOITE = 'POR_NOITE',
+  POR_DIA = 'POR_DIA',
+  POR_PESSOA_DIA = 'POR_PESSOA_DIA',
+}
+
+export enum SituacaoDoCusto {
+  A_PAGAR = 'A_PAGAR',
+  PAGO = 'PAGO',
+  PARCELADO = 'PARCELADO',
+}
+
+/**
+ * Item previsto no onboarding (passagem, hospedagem, passeios, gasto diário...).
+ * Vira um Custo com parcelas: o que já foi pago fica fora da meta.
+ */
+export class ItemCustoDto {
+  @ApiProperty({ example: 'Passagem ida e volta' })
+  @IsString()
+  @IsNotEmpty({ message: 'Dê um nome ao item' })
+  @MaxLength(120)
+  nome: string;
+
+  @ApiPropertyOptional({ enum: CategoriaCusto, default: 'OUTROS' })
+  @IsOptional()
+  @IsEnum(CategoriaCusto)
+  categoria?: CategoriaCusto;
+
+  @ApiProperty({ example: 200000, description: 'Valor unitário em centavos' })
+  @IsInt({ message: 'O valor deve estar em centavos (número inteiro)' })
+  @Min(1, { message: 'O valor precisa ser maior que zero' })
+  valorUnitarioCentavos: number;
+
+  @ApiProperty({ enum: BaseDoCusto, example: BaseDoCusto.POR_PESSOA })
+  @IsEnum(BaseDoCusto)
+  base: BaseDoCusto;
+
+  @ApiProperty({ enum: SituacaoDoCusto, example: SituacaoDoCusto.A_PAGAR })
+  @IsEnum(SituacaoDoCusto)
+  situacao: SituacaoDoCusto;
+
+  @ApiPropertyOptional({ example: 10, description: 'Parcelas (só quando PARCELADO)' })
+  @ValidateIf((o) => o.situacao === SituacaoDoCusto.PARCELADO)
+  @IsInt()
+  @Min(2, { message: 'Parcelado começa em 2 vezes' })
+  @Max(48, { message: 'No máximo 48 parcelas' })
+  parcelas?: number;
+
+  @ApiPropertyOptional({ example: 3, description: 'Quantas já foram pagas' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  parcelasPagas?: number;
+
+  @ApiPropertyOptional({ example: '2026-11-10', description: 'Vencimento da 1ª parcela' })
+  @IsOptional()
+  @IsDateString()
+  primeiroVencimento?: string;
+}
+
 export class CreateViagemDto {
   @ApiPropertyOptional({ example: 'Buenos Aires no fim do ano', description: 'Padrão: nome do destino' })
   @IsOptional()
@@ -95,6 +162,20 @@ export class CreateViagemDto {
   @IsInt({ message: 'A meta deve estar em centavos (número inteiro)' })
   @Min(0)
   metaCentavos: number;
+
+  @ApiPropertyOptional({ example: 2, description: 'Quantas pessoas vão (usado nos cálculos)' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  pessoas?: number;
+
+  @ApiPropertyOptional({ type: [ItemCustoDto], description: 'Itens previstos no onboarding' })
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => ItemCustoDto)
+  @ArrayMaxSize(30)
+  custos?: ItemCustoDto[];
 
   @ApiPropertyOptional({ description: 'Detalhes da estimativa feita no onboarding' })
   @IsOptional()

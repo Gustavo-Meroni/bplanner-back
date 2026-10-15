@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { FonteExterna } from './fonte-externa';
-import { aeroportoParaCidade } from './aeroportos';
+import { aeroportoParaCidade, aeroportosParaCidade } from './aeroportos';
 import paisesBrutos from './data/paises.json';
 
 const HORA = 60 * 60 * 1000;
@@ -8,17 +8,24 @@ const DIA = 24 * HORA;
 
 export interface Destino {
   nome: string;
+  /** Contexto curto para diferenciar homônimos: "Buenos Aires, Argentina" */
+  contexto: string | null;
   regiao: string | null;
   pais: string | null;
   codigoPais: string | null;
   lat: number;
   lng: number;
   aeroporto: string | null;
+  /** cidade | bairro | regiao | pais | lugar */
+  tipo: TipoDeLugar;
 }
+
+export type TipoDeLugar = 'cidade' | 'bairro' | 'regiao' | 'pais' | 'lugar';
 
 /**
  * Integrações gratuitas e sem chave usadas no onboarding:
- *  - Open-Meteo Geocoding: cidades com coordenadas
+ *  - Photon (OpenStreetMap): busca de lugares, incluindo bairros
+ *  - Open-Meteo Geocoding: reserva da busca, quando o Photon não responde
  *  - world-countries (arquivo local, mledoze/countries): bandeira, moeda e idioma
  *  - Open-Meteo Archive: clima típico do mês (média dos últimos anos)
  *  - Nager.Date: feriados nacionais
@@ -32,24 +39,110 @@ export class DestinosService {
   private readonly fonteFeriados = new FonteExterna('os feriados', 7 * DIA);
   private readonly fonteCambio = new FonteExterna('o câmbio', 6 * HORA, 50);
 
+  /**
+   * Busca lugares pelo nome. O Photon (OpenStreetMap) acha bairro e ponto
+   * conhecido, não só cidade — é o que faz "Palermo" trazer o bairro de
+   * Buenos Aires. Se ele falhar, cai no Open-Meteo, que só tem cidades.
+   */
   async buscar(termo: string): Promise<Destino[]> {
     const q = termo.trim();
     if (q.length < 2) return [];
 
-    const params = new URLSearchParams({ name: q, count: '8', language: 'pt', format: 'json' });
+    try {
+      const lugares = await this.buscarNoPhoton(q);
+      if (lugares.length > 0) return lugares;
+    } catch {
+      // segue para a reserva
+    }
+    return this.buscarNoOpenMeteo(q);
+  }
+
+  private async buscarNoPhoton(q: string): Promise<Destino[]> {
+    const params = new URLSearchParams({ q, limit: '15', lang: 'default' });
+    const resposta = await this.fonteGeocoding.buscar<{
+      features?: Array<{
+        geometry: { coordinates: [number, number] };
+        properties: {
+          name?: string;
+          countrycode?: string;
+          country?: string;
+          state?: string;
+          county?: string;
+          city?: string;
+          district?: string;
+          osm_key?: string;
+          osm_value?: string;
+          type?: string;
+        };
+      }>;
+    }>(`https://photon.komoot.io/api/?${params}`);
+
+    const vistos = new Set<string>();
+    const destinos: Destino[] = [];
+
+    for (const f of resposta?.features ?? []) {
+      const p = f.properties;
+      const tipo = tipoDoLugar(p.type, p.osm_value);
+      if (!p.name || !tipo) continue;
+
+      const [lng, lat] = f.geometry.coordinates;
+      const chave = `${p.name}|${p.countrycode ?? ''}|${lat.toFixed(2)}|${lng.toFixed(2)}`;
+      if (vistos.has(chave)) continue;
+      vistos.add(chave);
+
+      const cc = p.countrycode?.toUpperCase() ?? null;
+      const pais = (cc && PAISES[cc]?.nome) || p.country || null;
+      // Cidade/estado só entram no contexto quando são diferentes do próprio nome
+      const partes = [p.city, p.state ?? p.county, pais].filter(
+        (parte, i, todas): parte is string =>
+          Boolean(parte) && parte !== p.name && todas.indexOf(parte) === i,
+      );
+
+      destinos.push({
+        nome: p.name,
+        contexto: partes.join(', ') || null,
+        regiao: p.state ?? p.county ?? null,
+        pais,
+        codigoPais: cc,
+        lat,
+        lng,
+        aeroporto: aeroportoParaCidade(lat, lng)?.iata ?? null,
+        tipo,
+      });
+    }
+
+    return destinos;
+  }
+
+  private async buscarNoOpenMeteo(q: string): Promise<Destino[]> {
+    const params = new URLSearchParams({ name: q, count: '10', language: 'pt', format: 'json' });
     const resposta = await this.fonteGeocoding.buscar<{
       results?: Array<{ name: string; admin1?: string; country?: string; country_code?: string; latitude: number; longitude: number }>;
     }>(`https://geocoding-api.open-meteo.com/v1/search?${params}`);
 
-    return (resposta?.results ?? []).map((r) => ({
-      nome: r.name,
-      regiao: r.admin1 ?? null,
-      pais: r.country ?? null,
-      codigoPais: r.country_code ?? null,
-      lat: r.latitude,
-      lng: r.longitude,
-      aeroporto: aeroportoParaCidade(r.latitude, r.longitude)?.iata ?? null,
-    }));
+    return (resposta?.results ?? []).map((r) => {
+      const cc = r.country_code?.toUpperCase() ?? null;
+      const pais = (cc && PAISES[cc]?.nome) || r.country || null;
+      const partes = [r.admin1, pais].filter(
+        (parte, i, todas): parte is string => Boolean(parte) && parte !== r.name && todas.indexOf(parte) === i,
+      );
+      return {
+        nome: r.name,
+        contexto: partes.join(', ') || null,
+        regiao: r.admin1 ?? null,
+        pais,
+        codigoPais: cc,
+        lat: r.latitude,
+        lng: r.longitude,
+        aeroporto: aeroportoParaCidade(r.latitude, r.longitude)?.iata ?? null,
+        tipo: 'cidade' as const,
+      };
+    });
+  }
+
+  /** Aeroportos que atendem a coordenada, do mais indicado ao menos */
+  aeroportos(lat: number, lng: number) {
+    return aeroportosParaCidade(lat, lng);
   }
 
   aeroporto(lat: number, lng: number) {
@@ -177,4 +270,26 @@ function validarMoeda(codigo: string) {
 
 function media(valores: number[]) {
   return valores.reduce((t, v) => t + v, 0) / valores.length;
+}
+
+/** Converte o tipo do Photon no nosso; null descarta (rua, casa, loja...) */
+function tipoDoLugar(tipo?: string, osmValue?: string): TipoDeLugar | null {
+  switch (tipo) {
+    case 'city':
+    case 'town':
+    case 'village':
+    case 'locality':
+      return 'cidade';
+    case 'district':
+      return 'bairro';
+    case 'state':
+    case 'county':
+      return 'regiao';
+    case 'country':
+      return 'pais';
+    default:
+      if (osmValue && ['suburb', 'neighbourhood', 'quarter', 'borough'].includes(osmValue)) return 'bairro';
+      if (osmValue && ['island', 'archipelago', 'municipality'].includes(osmValue)) return 'cidade';
+      return null;
+  }
 }

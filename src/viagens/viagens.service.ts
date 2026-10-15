@@ -3,6 +3,7 @@ import { Participante, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateViagemDto, ParadaDto, UpdateViagemDto } from './dto/viagem.dto';
 import { COM_PARADAS, resumirViagem } from './viagens.mapper';
+import { itensParaCustos } from './itens-para-custos';
 import { exigirDono } from './viagem.guard';
 import { chaveDoMes, diasEntre, hoje, mesesAte, paraData, paraIso } from '../common/datas';
 
@@ -23,12 +24,20 @@ export class ViagensService {
   async criar(usuarioId: string, dto: CreateViagemDto) {
     this.validarDatas(dto.dataIda, dto.dataVolta);
 
+    // Os itens previstos no onboarding já nascem como custos com parcelas
+    const custos = itensParaCustos(dto.custos ?? [], {
+      pessoas: dto.pessoas ?? 1,
+      dataIda: paraData(dto.dataIda),
+      dataVolta: paraData(dto.dataVolta),
+    });
+
     const viagem = await this.prisma.viagem.create({
       data: {
         ...this.paraDados(dto),
         nome: dto.nome?.trim() || nomePadrao(dto.paradas),
         paradas: { create: this.paraParadas(dto.paradas) },
         participantes: { create: { usuarioId, papel: 'DONO' } },
+        ...(custos.length > 0 && { custos: { create: custos } }),
       },
       include: COM_PARADAS,
     });
@@ -133,8 +142,11 @@ export class ViagensService {
 
     const guardado = soma(aportes.map((a) => a.valorCentavos));
     const pagas = parcelas.filter((p) => p.pagaEm);
-    const pagoComCofre = soma(pagas.filter((p) => p.pagaComCofre).map((p) => p.valorCentavos));
-    const pagoForaDoCofre = soma(pagas.filter((p) => !p.pagaComCofre).map((p) => p.valorCentavos));
+    // O que já estava pago quando a viagem foi planejada não entra na meta nem no progresso
+    const pagasNoPlano = pagas.filter((p) => !p.anteriorAoPlano);
+    const pagoAntesDoPlano = soma(pagas.filter((p) => p.anteriorAoPlano).map((p) => p.valorCentavos));
+    const pagoComCofre = soma(pagasNoPlano.filter((p) => p.pagaComCofre).map((p) => p.valorCentavos));
+    const pagoForaDoCofre = soma(pagasNoPlano.filter((p) => !p.pagaComCofre).map((p) => p.valorCentavos));
     const comprometido = soma(parcelas.map((p) => p.valorCentavos));
     const progresso = guardado + pagoForaDoCofre;
     const falta = Math.max(viagem.metaCentavos - progresso, 0);
@@ -166,7 +178,8 @@ export class ViagensService {
       saldoCofreCentavos: guardado - pagoComCofre,
       custos: {
         comprometidoCentavos: comprometido,
-        pagoCentavos: pagoComCofre + pagoForaDoCofre,
+        pagoCentavos: pagoComCofre + pagoForaDoCofre + pagoAntesDoPlano,
+        pagoAntesDoPlanoCentavos: pagoAntesDoPlano,
         pendenteCentavos: soma(pendentes.map((p) => p.valorCentavos)),
         atrasadas: pendentes.filter((p) => p.vencimento < hojeData).length,
       },

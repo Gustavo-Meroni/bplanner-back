@@ -18,25 +18,40 @@ export interface Aeroporto {
 
 const RAIO_MAXIMO_KM = 150;
 
+/** Pontuação menor = melhor opção para a cidade (perto, grande e internacional) */
+function pontuar(linha: Linha, distancia: number) {
+  const internacional = /international|internacional|intl/i.test(linha[1]);
+  return distancia - (linha[6] ? 30 : 0) - (internacional ? 25 : 0);
+}
+
+function montar(linha: Linha, distancia: number): Aeroporto {
+  const [iata, nome, cidade, codigoPais] = linha;
+  return { iata, nome, cidade, codigoPais, distanciaKm: Math.round(distancia) };
+}
+
 /**
- * Aeroporto que melhor atende uma cidade. Não é só o mais próximo:
- * aeroportos grandes e internacionais levam vantagem, para que
- * São Paulo vire GRU (e não Congonhas) e Buenos Aires vire EZE.
+ * Aeroportos que atendem uma coordenada, do mais indicado ao menos.
+ * O primeiro é o palpite do app (grandes e internacionais levam vantagem),
+ * mas a lista inteira é oferecida: quem sai de São Paulo pode querer Congonhas.
  */
-export function aeroportoParaCidade(lat: number, lng: number): Aeroporto | null {
-  let melhor: { linha: Linha; distancia: number; pontuacao: number } | null = null;
+export function aeroportosParaCidade(lat: number, lng: number, limite = 6): Aeroporto[] {
+  const perto: Array<{ linha: Linha; distancia: number; pontuacao: number }> = [];
 
   for (const linha of AEROPORTOS) {
     const distancia = distanciaKm(lat, lng, linha[4], linha[5]);
     if (distancia > RAIO_MAXIMO_KM) continue;
-    const internacional = /international|internacional|intl/i.test(linha[1]);
-    const pontuacao = distancia - (linha[6] ? 30 : 0) - (internacional ? 25 : 0);
-    if (!melhor || pontuacao < melhor.pontuacao) melhor = { linha, distancia, pontuacao };
+    perto.push({ linha, distancia, pontuacao: pontuar(linha, distancia) });
   }
 
-  if (!melhor) return null;
-  const [iata, nome, cidade, codigoPais] = melhor.linha;
-  return { iata, nome, cidade, codigoPais, distanciaKm: Math.round(melhor.distancia) };
+  return perto
+    .sort((a, b) => a.pontuacao - b.pontuacao)
+    .slice(0, limite)
+    .map((item) => montar(item.linha, item.distancia));
+}
+
+/** Só o melhor palpite (usado para preencher o campo automaticamente) */
+export function aeroportoParaCidade(lat: number, lng: number): Aeroporto | null {
+  return aeroportosParaCidade(lat, lng, 1)[0] ?? null;
 }
 
 function distanciaKm(lat1: number, lng1: number, lat2: number, lng2: number) {
