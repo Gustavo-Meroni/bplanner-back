@@ -70,9 +70,25 @@ describe('itensParaCustos', () => {
     expect(paraIso(parcelas[0].vencimento)).toBe('2026-11-10');
   });
 
+  it('item escolhido no catálogo, sem valor, vira custo previsto sem parcela', () => {
+    const [custo] = itensParaCustos([{ nome: 'Passeios' } as ItemCustoDto], ctx);
+    expect(custo.valorTotalCentavos).toBe(0);
+    expect(custo.parcelas).toBeUndefined();
+    expect(custo.observacao).toBeNull();
+  });
+
+  it('por pessoa/noite multiplica pessoas e noites', () => {
+    const [custo] = itensParaCustos(
+      [item({ valorUnitarioCentavos: 8000, base: BaseDoCusto.POR_PESSOA_NOITE })],
+      ctx,
+    );
+    expect(custo.valorTotalCentavos).toBe(8000 * 3 * 7);
+    expect(custo.observacao).toBe('R$ 80,00 × 3 pessoas × 7 noites');
+  });
+
   it('registra como o valor foi calculado', () => {
     const [custo] = itensParaCustos([item({ base: BaseDoCusto.POR_PESSOA_DIA, valorUnitarioCentavos: 30000 })], ctx);
-    expect(custo.observacao).toBe('R$ 300,00 × 24 pessoas × dias');
+    expect(custo.observacao).toBe('R$ 300,00 × 3 pessoas × 8 dias');
     const [fixo] = itensParaCustos([item({})], ctx);
     expect(fixo.observacao).toBeNull();
   });

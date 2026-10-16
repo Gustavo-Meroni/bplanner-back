@@ -27,7 +27,6 @@ export function formatarParada(p: Parada) {
     codigoPais: p.codigoPais,
     lat: p.lat,
     lng: p.lng,
-    aeroporto: p.aeroporto,
     chegada: p.chegada ? paraIso(p.chegada) : null,
     saida: p.saida ? paraIso(p.saida) : null,
   };
@@ -42,11 +41,12 @@ export function resumirViagem(v: ViagemComParadas) {
     tipo: tipoDaViagem(v),
     origem:
       v.origemNome && v.origemLat !== null && v.origemLng !== null
-        ? { nome: v.origemNome, lat: v.origemLat, lng: v.origemLng, aeroporto: v.origemAeroporto }
+        ? { nome: v.origemNome, lat: v.origemLat, lng: v.origemLng }
         : null,
     dataIda: v.dataIda ? paraIso(v.dataIda) : null,
     dataVolta: v.dataVolta ? paraIso(v.dataVolta) : null,
     metaCentavos: v.metaCentavos,
+    transporte: v.transporte,
     estimativa: v.estimativa,
     configurada: viagemConfigurada(v),
   };

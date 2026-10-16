@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { FonteExterna } from './fonte-externa';
-import { aeroportoParaCidade, aeroportosParaCidade } from './aeroportos';
 import paisesBrutos from './data/paises.json';
 
 const HORA = 60 * 60 * 1000;
@@ -15,7 +14,6 @@ export interface Destino {
   codigoPais: string | null;
   lat: number;
   lng: number;
-  aeroporto: string | null;
   /** cidade | bairro | regiao | pais | lugar */
   tipo: TipoDeLugar;
 }
@@ -30,7 +28,6 @@ export type TipoDeLugar = 'cidade' | 'bairro' | 'regiao' | 'pais' | 'lugar';
  *  - Open-Meteo Archive: clima típico do mês (média dos últimos anos)
  *  - Nager.Date: feriados nacionais
  *  - ExchangeRate-API (open access): câmbio diário
- *  - OurAirports (arquivo local): código do aeroporto
  */
 @Injectable()
 export class DestinosService {
@@ -106,7 +103,6 @@ export class DestinosService {
         codigoPais: cc,
         lat,
         lng,
-        aeroporto: aeroportoParaCidade(lat, lng)?.iata ?? null,
         tipo,
       });
     }
@@ -134,20 +130,12 @@ export class DestinosService {
         codigoPais: cc,
         lat: r.latitude,
         lng: r.longitude,
-        aeroporto: aeroportoParaCidade(r.latitude, r.longitude)?.iata ?? null,
         tipo: 'cidade' as const,
       };
     });
   }
 
-  /** Aeroportos que atendem a coordenada, do mais indicado ao menos */
-  aeroportos(lat: number, lng: number) {
-    return aeroportosParaCidade(lat, lng);
-  }
 
-  aeroporto(lat: number, lng: number) {
-    return aeroportoParaCidade(lat, lng);
-  }
 
   /** Dados do país vêm de um arquivo local: mudam raramente e não dependem de API externa */
   pais(codigo: string) {

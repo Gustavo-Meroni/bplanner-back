@@ -34,7 +34,9 @@ model Viagem {
   origemNome      String?
   origemLat       Float?
   origemLng       Float?
-  origemAeroporto String?
+
+  /// Como vão viajar (opcional): muda o ícone da rota e sugere os gastos
+  transporte TipoTransporte?
 
   dataIda   DateTime? @db.Date
   dataVolta DateTime? @db.Date
@@ -64,8 +66,6 @@ model Parada {
   codigoPais String?
   lat        Float
   lng        Float
-  /// Código IATA do aeroporto mais próximo (ex.: EZE)
-  aeroporto  String?
   /// Datas por parada (para uma versão futura do roteiro)
   chegada    DateTime? @db.Date
   saida      DateTime? @db.Date
@@ -74,6 +74,13 @@ model Parada {
   viagem   Viagem @relation(fields: [viagemId], references: [id], onDelete: Cascade)
 
   @@unique([viagemId, ordem])
+}
+
+enum TipoTransporte {
+  AVIAO
+  CARRO
+  ONIBUS
+  OUTRO
 }
 
 enum PapelParticipante {

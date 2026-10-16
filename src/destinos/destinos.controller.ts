@@ -11,17 +11,12 @@ export class DestinosController {
   constructor(private readonly destinos: DestinosService) {}
 
   @Get('busca')
-  @ApiOperation({ summary: 'Buscar lugares pelo nome: cidade ou bairro, com coordenadas e aeroporto' })
+  @ApiOperation({ summary: 'Buscar lugares pelo nome: cidade ou bairro, com coordenadas' })
   @ApiQuery({ name: 'q', example: 'Palermo' })
   buscar(@Query('q') q = '') {
     return this.destinos.buscar(q);
   }
 
-  @Get('aeroportos')
-  @ApiOperation({ summary: 'Aeroportos que atendem uma coordenada, do mais indicado ao menos' })
-  aeroportos(@Query('lat') lat: string, @Query('lng') lng: string) {
-    return this.destinos.aeroportos(coordenada(lat, 90), coordenada(lng, 180));
-  }
 
   @Get('paises/:codigo')
   @ApiOperation({ summary: 'Bandeira, moeda e idioma de um país (base local)' })

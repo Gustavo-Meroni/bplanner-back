@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { CategoriaCusto } from '@prisma/client';
+import { CategoriaCusto, TipoTransporte } from '@prisma/client';
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -38,13 +38,7 @@ export class LocalDto {
   lng: number;
 }
 
-export class OrigemDto extends LocalDto {
-  @ApiPropertyOptional({ example: 'GRU', description: 'Código IATA do aeroporto' })
-  @IsOptional()
-  @IsString()
-  @Length(3, 3)
-  aeroporto?: string;
-}
+export class OrigemDto extends LocalDto {}
 
 export class ParadaDto extends OrigemDto {
   @ApiPropertyOptional({ example: 'Ciudad Autónoma de Buenos Aires' })
@@ -73,6 +67,7 @@ export enum BaseDoCusto {
   POR_NOITE = 'POR_NOITE',
   POR_DIA = 'POR_DIA',
   POR_PESSOA_DIA = 'POR_PESSOA_DIA',
+  POR_PESSOA_NOITE = 'POR_PESSOA_NOITE',
 }
 
 export enum SituacaoDoCusto {
@@ -97,18 +92,24 @@ export class ItemCustoDto {
   @IsEnum(CategoriaCusto)
   categoria?: CategoriaCusto;
 
-  @ApiProperty({ example: 200000, description: 'Valor unitário em centavos' })
+  @ApiPropertyOptional({
+    example: 200000,
+    description: 'Valor unitário em centavos. Zero ou ausente = previsto, sem valor ainda',
+  })
+  @IsOptional()
   @IsInt({ message: 'O valor deve estar em centavos (número inteiro)' })
-  @Min(1, { message: 'O valor precisa ser maior que zero' })
-  valorUnitarioCentavos: number;
+  @Min(0)
+  valorUnitarioCentavos?: number;
 
-  @ApiProperty({ enum: BaseDoCusto, example: BaseDoCusto.POR_PESSOA })
+  @ApiPropertyOptional({ enum: BaseDoCusto, default: BaseDoCusto.FIXO })
+  @IsOptional()
   @IsEnum(BaseDoCusto)
-  base: BaseDoCusto;
+  base?: BaseDoCusto;
 
-  @ApiProperty({ enum: SituacaoDoCusto, example: SituacaoDoCusto.A_PAGAR })
+  @ApiPropertyOptional({ enum: SituacaoDoCusto, default: SituacaoDoCusto.A_PAGAR })
+  @IsOptional()
   @IsEnum(SituacaoDoCusto)
-  situacao: SituacaoDoCusto;
+  situacao?: SituacaoDoCusto;
 
   @ApiPropertyOptional({ example: 10, description: 'Parcelas (só quando PARCELADO)' })
   @ValidateIf((o) => o.situacao === SituacaoDoCusto.PARCELADO)
@@ -158,10 +159,25 @@ export class CreateViagemDto {
   @IsDateString({}, { message: 'Informe a data de volta (AAAA-MM-DD)' })
   dataVolta: string;
 
-  @ApiProperty({ example: 1250000, description: 'Meta em centavos' })
+  @ApiPropertyOptional({
+    example: 1250000,
+    description: 'Estimativa de quanto a viagem custa no total, em centavos. Zero = ainda não sabe',
+  })
+  @IsOptional()
   @IsInt({ message: 'A meta deve estar em centavos (número inteiro)' })
   @Min(0)
-  metaCentavos: number;
+  metaCentavos?: number;
+
+  @ApiPropertyOptional({ enum: TipoTransporte, description: 'Como vão viajar' })
+  @IsOptional()
+  @IsEnum(TipoTransporte)
+  transporte?: TipoTransporte;
+
+  @ApiPropertyOptional({ example: 50000, description: 'Dinheiro já guardado, em centavos' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  aporteInicialCentavos?: number;
 
   @ApiPropertyOptional({ example: 2, description: 'Quantas pessoas vão (usado nos cálculos)' })
   @IsOptional()

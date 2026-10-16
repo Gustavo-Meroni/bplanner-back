@@ -39,8 +39,22 @@ export class ViagensService {
         participantes: { create: { usuarioId, papel: 'DONO' } },
         ...(custos.length > 0 && { custos: { create: custos } }),
       },
-      include: COM_PARADAS,
+      include: { ...COM_PARADAS, participantes: true },
     });
+
+    // "Já tenho guardado" vira o primeiro aporte, para o painel não nascer zerado
+    if (dto.aporteInicialCentavos && dto.aporteInicialCentavos > 0) {
+      await this.prisma.aporte.create({
+        data: {
+          viagemId: viagem.id,
+          participanteId: viagem.participantes[0]?.id ?? null,
+          descricao: 'Já guardado antes de começar',
+          valorCentavos: dto.aporteInicialCentavos,
+          data: hoje(),
+        },
+      });
+    }
+
     return { ...resumirViagem(viagem), papel: 'DONO' as const };
   }
 
@@ -211,7 +225,6 @@ export class ViagensService {
       codigoPais: p.codigoPais?.toUpperCase() ?? null,
       lat: p.lat,
       lng: p.lng,
-      aeroporto: p.aeroporto?.toUpperCase() ?? null,
     }));
   }
 
@@ -222,12 +235,12 @@ export class ViagensService {
         origemNome: dto.origem.nome,
         origemLat: dto.origem.lat,
         origemLng: dto.origem.lng,
-        origemAeroporto: dto.origem.aeroporto?.toUpperCase() ?? null,
       });
     }
     if (dto.dataIda) dados.dataIda = paraData(dto.dataIda);
     if (dto.dataVolta) dados.dataVolta = paraData(dto.dataVolta);
     if (dto.metaCentavos !== undefined) dados.metaCentavos = dto.metaCentavos;
+    if (dto.transporte !== undefined) dados.transporte = dto.transporte;
     if (dto.estimativa !== undefined) dados.estimativa = dto.estimativa as Prisma.InputJsonValue;
     return dados as Prisma.ViagemUpdateInput & Prisma.ViagemCreateInput;
   }
